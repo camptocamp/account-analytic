@@ -16,8 +16,8 @@ No required dependency on Accounting modules.
 
 You might want to install as well other modules to set department:
 
-- Analytic Department Categorization (`analytic_department <https://github.com/OCA/account-analytic/tree/11.0/analytic_department>`_)
 - Project Department Categorization (`project_department <https://github.com/OCA/project/tree/11.0/project_department>`_)
+- Project Task specific Department (`project_task_departement <https://github.com/OCA/project/tree/11.0/project_task_departement>`)
 
 
 Usage
@@ -50,6 +50,7 @@ Contributors
 * Joël Grand-Guillaume <joël.grandguillaume@camptocamp.com>
 * Yannick Vaucher <yannick.vaucher@camptocamp.com>
 * Guewen Baconnier <guewen.baconnier@camptocamp.com>
+* Thomas Nowicki <thomas.nowicki@camptocamp.com>
 * Daniel Reis <dgreis@sapo.pt>
 * Angel Moya <angel.moya@domatix.com>
 * Dave Burkholder <dave@thinkwelldesigns.com>
