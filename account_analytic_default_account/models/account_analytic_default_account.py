@@ -48,6 +48,10 @@ class AccountAnalyticDefaultAccount(models.Model):
         """Search the records matching the built domain,
         compute an index score based on the actual record values then
         return the record with the highest index score"""
+        # if we have account than company should be same as in account
+        if account_id:
+            company_id = self.env['account.account'].browse(account_id).\
+                company_id.id
         filters = {
             'product_id': product_id,
             'partner_id': partner_id,
