@@ -3,6 +3,9 @@
 
 from odoo.tests import common
 import time
+import mock
+
+MOCK_PATH = 'odoo.addons.account_analytic_default_account'
 
 
 class TestAnalyticDefaultAccount(common.SavepointCase):
@@ -11,7 +14,7 @@ class TestAnalyticDefaultAccount(common.SavepointCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.env = cls.env(context=dict(cls.env.context, tracking_disable=True))
-
+        cls.company = cls.env.ref('base.main_company')
         cls.account_analytic_default_model = \
             cls.env['account.analytic.default']
         cls.analytic_account_model = cls.env['account.analytic.account']
@@ -95,27 +98,35 @@ class TestAnalyticDefaultAccount(common.SavepointCase):
         invoice.action_invoice_open()
         return invoice
 
-    def create_move(self, amount=100):
+    def create_move(self, amount=100, product_id=None, partner_id=None,
+                    date=None):
         ml_obj = self.move_line_obj.with_context(check_move_validity=False)
+        if not date:
+            date = time.strftime('%Y') + '-07-25',
         move_vals = {
             'name': '/',
             'journal_id': self.sales_journal.id,
-            'date': time.strftime('%Y') + '-07-25',
+            'date': date,
+            'partner_id': partner_id,
         }
         move = self.move_obj.create(move_vals)
-        move_line_1 = ml_obj.create(
-            {'move_id': move.id,
-             'name': '/',
-             'debit': 0,
-             'credit': amount,
-             'account_id': self.account_sales.id})
-        move_line_2 = ml_obj.create(
-            {'move_id': move.id,
-             'name': '/',
-             'debit': amount,
-             'credit': 0,
-             'account_id': self.account_receivable.id,
-             })
+        move_line_1 = ml_obj.create({
+            'move_id': move.id,
+            'name': '/',
+            'debit': 0,
+            'credit': amount,
+            'account_id': self.account_sales.id,
+            'product_id': product_id,
+            'partner_id': partner_id,
+        })
+        move_line_2 = ml_obj.create({
+            'move_id': move.id,
+            'name': '/',
+            'debit': amount,
+            'credit': 0,
+            'account_id': self.account_receivable.id,
+            'partner_id': partner_id,
+        })
         return move, move_line_1, move_line_2
 
     def test_account_analytic_default_get_account(self):
@@ -141,3 +152,66 @@ class TestAnalyticDefaultAccount(common.SavepointCase):
         self.assertEqual(move_line_1.analytic_account_id,
                          self.analytic_account_4)
         self.assertFalse(move_line_2.analytic_account_id.id)
+
+    def test_account_analytic_default_best_choice(self):
+        # match on product
+        move, move_line_1, _ = self.create_move(
+            100, self.product.id,
+        )
+        self.assertEqual(move_line_1.analytic_account_id,
+                         self.analytic_account_3)
+        # set user
+        self.account_analytic_default_model.create({
+            'account_id': self.account_sales.id,
+            'analytic_id': self.analytic_account_2.id,
+            'product_id': self.product.id,
+            'user_id': self.env.uid,
+        })
+        move, move_line_1, _ = self.create_move(
+            100, self.product.id, self.partner_agrolait.id
+        )
+        self.assertEqual(move_line_1.analytic_account_id,
+                         self.analytic_account_2)
+        # set company
+        self.account_analytic_default_model.create({
+            'account_id': self.account_sales.id,
+            'analytic_id': self.analytic_account_4.id,
+            'company_id': self.company.id,
+            'product_id': self.product.id,
+            'user_id': self.env.uid,
+            'date_start': '',
+            'date_stop': '',
+        })
+        move, move_line_1, _ = self.create_move(
+            100, self.product.id, self.partner_agrolait.id
+        )
+        self.assertEqual(move_line_1.analytic_account_id,
+                         self.analytic_account_4)
+        # create account with time constrains
+        self.account_analytic_default_model.create({
+            'account_id': self.account_sales.id,
+            'analytic_id': self.analytic_account_1.id,
+            'company_id': self.company.id,
+            'product_id': self.product.id,
+            'user_id': self.env.uid,
+            'date_start': '%s-07-01' % time.strftime('%Y'),
+            'date_stop': '%s-07-31' % time.strftime('%Y'),
+        })
+        with mock.patch(
+                MOCK_PATH + '.models.account_analytic_default_account.fields.'
+                            'Date.today'
+        ) as fnct:
+            fnct.return_value = '%s-07-15' % time.strftime('%Y')
+            move, move_line_1, _ = self.create_move(
+                100, self.product.id, self.partner_agrolait.id
+            )
+            self.assertEqual(move_line_1.analytic_account_id,
+                             self.analytic_account_1)
+
+        # when period to use default account ends we get previous aal
+        move, move_line_1, _ = self.create_move(
+            100, self.product.id, self.partner_agrolait.id,
+            '%s-08-15' % time.strftime('%Y')
+        )
+        self.assertEqual(move_line_1.analytic_account_id,
+                         self.analytic_account_4)

@@ -82,22 +82,30 @@ class AccountInvoiceLine(models.Model):
         res = super()._onchange_product_id()
         if (not config['test_enable'] or
                 self.env.context.get('test_account_analytic_default_account')):
+            date = self.env['account.invoice'].browse(self.invoice_id.id).date \
+                   or fields.Date.today(),
             rec = self.env['account.analytic.default'].account_get(
                 product_id=self.product_id.id,
                 partner_id=self.invoice_id.partner_id.id,
-                user_id=self.env.uid, date=fields.Date.today(),
-                company_id=self.company_id.id, account_id=self.account_id.id
+                user_id=self.env.uid,
+                date=date,
+                company_id=self.company_id.id,
+                account_id=self.account_id.id
             )
             self.account_analytic_id = rec.analytic_id.id
         return res
 
     def _set_additional_fields(self, invoice):
         if not self.account_analytic_id:
+            date = self.env['account.invoice'].browse(invoice.id).date\
+                   or fields.Date.today()
             rec = self.env['account.analytic.default'].account_get(
                 product_id=self.product_id.id,
                 partner_id=self.invoice_id.partner_id.id,
-                user_id=self.env.uid, date=fields.Date.today(),
-                company_id=self.company_id.id, account_id=self.account_id.id
+                user_id=self.env.uid,
+                date=date,
+                company_id=self.company_id.id,
+                account_id=self.account_id.id
             )
             if rec:
                 self.account_analytic_id = rec.analytic_id.id
@@ -128,8 +136,15 @@ class AccountMoveLine(models.Model):
     @api.model
     def create(self, vals):
         if 'analytic_account_id' not in vals:
+            date = self.env['account.move'].browse(vals.get('move_id')).date
             rec = self.env['account.analytic.default'].account_get(
-                account_id=vals.get('account_id'))
+                account_id=vals.get('account_id'),
+                product_id=vals.get('product_id'),
+                partner_id=vals.get('partner_id'),
+                user_id=self.env.uid,
+                company_id=self.env.user.company_id.id,
+                date=date,
+            )
             if rec:
                 vals['analytic_account_id'] = rec.analytic_id.id
         return super().create(vals)
