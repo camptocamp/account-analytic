@@ -9,6 +9,6 @@
     "author": "PESOL, Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/account-analytic",
     "depends": ["analytic", "account"],
-    "data": ["views/analytic_view.xml", "security/ir.model.access.csv"],
+    "data": ["security/ir.model.access.csv", "views/analytic_view.xml"],
     "demo": ["demo/analytic_demo.xml"],
 }
